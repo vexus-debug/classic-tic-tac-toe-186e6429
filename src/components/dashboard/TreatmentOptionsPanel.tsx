@@ -208,9 +208,13 @@ export function TreatmentOptionsPanel({ plans, orgId, patientId, canEdit, fmt, o
                                     {it.tooth_number && <span className="ml-1 text-xs text-muted-foreground">· tooth {it.tooth_number}</span>}
                                     {consentCategory(it.description) && (hasSignedConsent(it, consents)
                                       ? <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]"><ShieldCheck className="h-2.5 w-2.5 mr-0.5" />consent signed</Badge>
-                                      : <Link to={`${basePath}/consent-forms?patientId=${patientId}&new=1&template=${encodeURIComponent(consentCategory(it.description)!)}`}>
-                                          <Badge variant="destructive" className="ml-1 h-4 px-1 text-[10px]"><ShieldAlert className="h-2.5 w-2.5 mr-0.5" />sign consent</Badge>
-                                        </Link>)}
+                                      : !isDone && (
+                                        <Button asChild size="sm" variant="outline" className="ml-1 h-6 px-2 text-[11px] border-destructive/40 text-destructive hover:bg-destructive/10">
+                                          <Link to={`${basePath}/consent-forms?patientId=${patientId}&new=1&planItem=${it.id}&template=${encodeURIComponent(consentCategory(it.description)!)}`} aria-label={`Prepare consent for ${it.description}`}>
+                                            <ShieldAlert className="h-3 w-3 mr-1" />Prepare consent
+                                          </Link>
+                                        </Button>
+                                      ))}
                                     {isInvoiced(it) && <Badge variant="outline" className="ml-1 h-4 px-1 text-[10px]">invoiced</Badge>}
                                   </span>
                                   {canEdit && (
