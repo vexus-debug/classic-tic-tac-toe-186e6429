@@ -7,7 +7,6 @@ export interface ConsentTemplateSeed {
 }
 
 // Signature lines are drawn by the PDF (digital seals, timestamp, SHA-256), not in the body.
-const sig = "";
 
 export const consentTemplateSeeds: ConsentTemplateSeed[] = [
   {
