@@ -10,6 +10,10 @@ export interface SmartTagData {
   total_cost?: string;
   clinic_name?: string;
   date?: string;
+  number_of_implants?: string;
+  healing_period?: string;
+  reason?: string;
+  signer_name?: string;
 }
 
 const BRACKET: Record<string, keyof SmartTagData> = {
@@ -22,12 +26,27 @@ const BRACKET: Record<string, keyof SmartTagData> = {
   "AMOUNT": "total_cost",
   "CLINIC NAME": "clinic_name",
   "DATE": "date",
+  "NUMBER": "number_of_implants",
+  "HEALING PERIOD": "healing_period",
+  "REASON": "reason",
+  "GUARDIAN NAME": "signer_name",
+  "SIGNER NAME": "signer_name",
 };
 
 export const SMART_TAGS = [
   "patient_name", "procedure_name", "tooth_numbers", "clinician_name",
   "alternative_treatments", "total_cost", "clinic_name", "date",
+  "number_of_implants", "healing_period", "reason",
 ] as const;
+
+export const IMPLANT_HEALING_DEFAULT = "3 to 6 months (osseointegration period)";
+
+/** Clinical defaults derived from the selected plan item: implant count and healing period. */
+export function clinicalDefaults(procedure?: string | null, teeth?: string | null): Partial<SmartTagData> {
+  if (!/implant/i.test(procedure || "")) return {};
+  const count = (teeth || "").split(/[,\s]+/).filter(Boolean).length;
+  return { number_of_implants: String(count || 1), healing_period: IMPLANT_HEALING_DEFAULT };
+}
 
 /** Replaces known tags with values; unknown or empty tags are left visible for manual completion. */
 export function fillSmartTags(text: string, data: SmartTagData): string {
@@ -37,6 +56,23 @@ export function fillSmartTags(text: string, data: SmartTagData): string {
       const key = BRACKET[k.trim()];
       return (key && data[key]) || m;
     });
+}
+
+/** Lists every placeholder still left in a document ({{tag}} or [TAG]), unique, in order. */
+export function findUnresolvedTags(text: string): string[] {
+  const found = (text || "").match(/\{\{\s*[a-z_]+\s*\}\}|\[[A-Z][A-Z0-9 /:,-]*\]/gi) || [];
+  return [...new Set(found.filter((t) => t.startsWith("{{") || t === t.toUpperCase()))];
+}
+
+/** Human label for a placeholder, e.g. "[HEALING PERIOD]" → "Healing period". */
+export function tagLabel(tag: string): string {
+  const s = tag.replace(/^\{\{\s*|\s*\}\}$|^\[|\]$/g, "").replace(/_/g, " ").toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Replaces every occurrence of one placeholder with a value. */
+export function fillTag(text: string, tag: string, value: string): string {
+  return value ? (text || "").split(tag).join(value) : text;
 }
 
 // Procedures that require a signed consent before they can be completed.
