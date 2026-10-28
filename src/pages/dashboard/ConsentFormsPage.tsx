@@ -34,7 +34,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import { SignaturePad } from "@/components/dashboard/SignaturePad";
 import { buildConsentPdf, urlToDataUrl } from "@/lib/consentPdf";
-import { fillSmartTags, sha256Hex, SMART_TAGS } from "@/lib/consentSmartTags";
+import { fillSmartTags, sha256Hex, SMART_TAGS, findUnresolvedTags, tagLabel, fillTag, clinicalDefaults, stripLegacySignature } from "@/lib/consentSmartTags";
+import { useQueryClient } from "@tanstack/react-query";
 
 const statusIcons: Record<string, any> = {
   pending: Clock,
@@ -62,6 +63,7 @@ export default function ConsentFormsPage() {
   const createForm = useCreatePatientConsentForm();
   const signForm = useSignConsentForm();
   const uploadDoc = useUploadPatientDocument();
+  const qc = useQueryClient();
 
   const [search, setSearch] = useState("");
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
@@ -200,14 +202,22 @@ export default function ConsentFormsPage() {
     const p: any = patients.find((x: any) => x.id === patientId);
     const db = supabase as any;
     const { data: plans } = patientId
-      ? await db.from("treatment_plans").select("plan_name, option_label, acceptance_status, status, treatment_plan_items(description, tooth_number, estimated_cost, status)")
+      ? await db.from("treatment_plans").select("id, plan_name, option_label, option_group, acceptance_status, status, treatment_plan_items(id, description, tooth_number, estimated_cost, status)")
           .eq("org_id", currentOrg?.org_id).eq("patient_id", patientId).neq("status", "cancelled")
       : { data: [] };
     const all = plans || [];
-    const main = all.find((x: any) => x.acceptance_status === "accepted") || all.find((x: any) => x.status === "active") || all[0];
-    const items = (main?.treatment_plan_items || []).filter((i: any) => i.status !== "completed" && i.status !== "skipped");
-    const alts = all.filter((x: any) => x !== main && x.option_label).map((x: any) => `Option ${x.option_label}: ${(x.treatment_plan_items || []).map((i: any) => i.description).join(", ")}`);
-    return fillSmartTags(content, {
+    // A specific plan item (from "Prepare consent") scopes the form to that procedure and tooth.
+    const planItemId = searchParams.get("planItem");
+    const itemPlan = planItemId ? all.find((x: any) => (x.treatment_plan_items || []).some((i: any) => i.id === planItemId)) : null;
+    const main = itemPlan || all.find((x: any) => x.acceptance_status === "accepted") || all.find((x: any) => x.status === "active") || all[0];
+    const items = itemPlan
+      ? itemPlan.treatment_plan_items.filter((i: any) => i.id === planItemId)
+      : (main?.treatment_plan_items || []).filter((i: any) => i.status !== "completed" && i.status !== "skipped");
+    const alts = all.filter((x: any) => x !== main && x.option_label && (!main?.option_group || x.option_group === main.option_group)).map((x: any) => `Option ${x.option_label}: ${(x.treatment_plan_items || []).map((i: any) => i.description).join(", ")}`);
+    const procedure = items.map((i: any) => i.description).join(", ");
+    const teeth = [...new Set(items.map((i: any) => i.tooth_number).filter(Boolean))].join(", ");
+    return fillSmartTags(stripLegacySignature(content), {
+      ...clinicalDefaults(procedure, teeth),
       patient_name: p ? `${p.first_name} ${p.last_name}` : undefined,
       procedure_name: items.map((i: any) => i.description).join(", ") || undefined,
       tooth_numbers: [...new Set(items.map((i: any) => i.tooth_number).filter(Boolean))].join(", ") || undefined,
@@ -227,8 +237,22 @@ export default function ConsentFormsPage() {
     }
   };
 
+  // Signer name typed at signing flows into the body so the text and seal always match.
+  const signContent = fillSmartTags(stripLegacySignature(selectedForm?.content || ""), { signer_name: signerName.trim() || undefined });
+  const signBlanks = findUnresolvedTags(signContent);
+  const fillSignedFormTag = async (tag: string, value: string) => {
+    if (!selectedForm) return;
+    const { error } = await (supabase as any).from("patient_consent_forms").update({ content: fillTag(selectedForm.content || "", tag, value) }).eq("id", selectedForm.id);
+    if (error) toast({ title: "Could not save", description: error.message, variant: "destructive" });
+    qc.invalidateQueries({ queryKey: ["patient_consent_forms"] });
+  };
+
   const handleSign = async () => {
     if (!selectedFormId || !signerName || !signature || !clinicianName || !clinicianSig) return;
+    if (signBlanks.length > 0) {
+      toast({ title: "Blanks remain", description: "Please fill remaining blanks before signing.", variant: "destructive" });
+      return;
+    }
     setSigning(true);
     try {
       if (selectedForm) {
@@ -236,12 +260,12 @@ export default function ConsentFormsPage() {
         const patientName = `${selectedForm.patients?.first_name || ""} ${selectedForm.patients?.last_name || ""}`.trim();
         const date = new Date().toLocaleDateString();
         const timestamp = new Date().toISOString();
-        const hash = await sha256Hex([selectedForm.id, selectedForm.title, selectedForm.content, signerName, clinicianName, timestamp, signature, clinicianSig].join("|"));
+        const hash = await sha256Hex([selectedForm.id, selectedForm.title, signContent, signerName, clinicianName, timestamp, signature, clinicianSig].join("|"));
         const blob = buildConsentPdf({
           signerRelation, clinicianName, clinicianLicense, clinicianSignatureDataUrl: clinicianSig, timestamp, hash,
           clinic: { name: org?.name || currentOrg?.org_name || "Clinic", address: org?.address, phone: org?.phone, email: org?.email, logoDataUrl: await urlToDataUrl(org?.logo_url) },
           title: selectedForm.title,
-          content: selectedForm.content || "",
+          content: signContent,
           patientName,
           signerName,
           signatureDataUrl: signature,
@@ -261,6 +285,9 @@ export default function ConsentFormsPage() {
         a.download = fileName;
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }
+      if (signContent !== selectedForm?.content) {
+        await (supabase as any).from("patient_consent_forms").update({ content: signContent }).eq("id", selectedFormId);
       }
       await signForm.mutateAsync({ id: selectedFormId, signer_name: signerName, witnessed_by: user?.id });
       setSignDialogOpen(false);
@@ -313,19 +340,8 @@ export default function ConsentFormsPage() {
     if (!formDialogOpen || consentForm.templateId || !consentForm.patientId || templates.length === 0) return;
     let cancelled = false;
     (async () => {
-      let keyword = searchParams.get("template");
-      if (!keyword) {
-        const { data } = await (supabase as any)
-          .from("appointments")
-          .select("notes, treatments(name)")
-          .eq("org_id", currentOrg?.org_id)
-          .eq("patient_id", consentForm.patientId)
-          .eq("appointment_date", new Date().toISOString().split("T")[0])
-          .neq("status", "cancelled")
-          .limit(1);
-        const a = data?.[0];
-        keyword = suggestConsentTemplate(`${a?.treatments?.name || ""} ${a?.notes || ""}`);
-      }
+      // Visit start uses the general intake consent; procedure consents arrive with ?template=&planItem= from the plan.
+      const keyword = searchParams.get("template") || "general";
       if (cancelled || !keyword) return;
       const t = templates.find((t: any) => t.is_active && t.title?.toLowerCase().includes(keyword!.toLowerCase()));
       if (!t) return;
@@ -532,6 +548,7 @@ export default function ConsentFormsPage() {
                   {tailoring ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />} Add patient risks with AI
                 </Button>
               </div>
+              <ClinicalDetailsCard content={consentForm.content} onFill={(tag, v) => setConsentForm(f => ({ ...f, content: fillTag(f.content, tag, v) }))} />
               <Textarea value={consentForm.content} onChange={e => setConsentForm(f => ({ ...f, content: e.target.value }))} rows={6} />
               <p className="text-[11px] text-muted-foreground">Auto-filled tags: {SMART_TAGS.map(t => `{{${t}}}`).join(" ")}</p>
               <p className="text-[11px] text-muted-foreground">Pick a patient and title first. Review AI-added risks before saving.</p>
@@ -552,9 +569,10 @@ export default function ConsentFormsPage() {
             {selectedForm?.content && (
               <ScrollArea className="max-h-56 rounded-md border p-3">
                 <p className="text-sm font-medium mb-2">{selectedForm.title}</p>
-                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{selectedForm.content}</p>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{signContent}</p>
               </ScrollArea>
             )}
+            <ClinicalDetailsCard content={signContent} onFill={(tag, v) => void fillSignedFormTag(tag, v)} />
             <div className="rounded-md border p-3 space-y-2">
               <p className="text-xs font-semibold">1. Patient or legal guardian</p>
               <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -574,11 +592,12 @@ export default function ConsentFormsPage() {
               </div>
               <SignaturePad onChange={setClinicianSig} />
             </div>
+            {signBlanks.length > 0 && <p className="text-xs font-medium text-destructive" role="alert">Please fill the remaining blanks before signing.</p>}
             <p className="text-[11px] text-muted-foreground">Both signatures are required. Signing locks the form into a timestamped PDF with a tamper-check code, saves it to the patient's documents and downloads a copy.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSignDialogOpen(false)}>Cancel</Button>
-            <Button onClick={() => void handleSign()} className="bg-secondary hover:bg-secondary/90" disabled={signing || !signerName || !signature || !clinicianName || !clinicianSig}>{signing ? "Locking..." : "Sign & lock PDF"}</Button>
+            <Button onClick={() => void handleSign()} className="bg-secondary hover:bg-secondary/90" disabled={signing || signBlanks.length > 0 || !signerName || !signature || !clinicianName || !clinicianSig}>{signing ? "Locking..." : "Sign & lock PDF"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -663,6 +682,25 @@ export default function ConsentFormsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/** "Clinical Details Needed": one input per placeholder still left in the document. */
+function ClinicalDetailsCard({ content, onFill }: { content: string; onFill: (tag: string, value: string) => void }) {
+  const blanks = findUnresolvedTags(content);
+  const [values, setValues] = useState<Record<string, string>>({});
+  if (blanks.length === 0) return null;
+  return (
+    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2 dark:bg-amber-950/30" data-testid="clinical-details-needed">
+      <p className="text-xs font-semibold flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" />Clinical details needed ({blanks.length})</p>
+      {blanks.map((tag) => (
+        <form key={tag} className="flex gap-2" onSubmit={(e) => { e.preventDefault(); onFill(tag, (values[tag] || "").trim()); setValues((v) => ({ ...v, [tag]: "" })); }}>
+          <Label className="text-xs w-32 shrink-0 self-center">{tagLabel(tag)}</Label>
+          <Input className="h-8" value={values[tag] || ""} placeholder={tag} onChange={(e) => setValues((v) => ({ ...v, [tag]: e.target.value }))} />
+          <Button type="submit" size="sm" variant="outline" className="h-8" disabled={!(values[tag] || "").trim()}>Fill</Button>
+        </form>
+      ))}
     </div>
   );
 }
