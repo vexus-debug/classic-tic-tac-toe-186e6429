@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { usePatientContext, useClinicLinks } from "@/hooks/usePatientContext";
 import { Link } from "react-router-dom";
-import { suggestConsentTemplate } from "@/data/consentTemplates";
 import { ArrowRight, Grid3x3, ClipboardList } from "lucide-react";
 import { PatientVisitBar } from "@/components/dashboard/PatientVisitBar";
 import { useSearchParams } from "react-router-dom";

@@ -11,7 +11,6 @@ import { useDentists } from "@/hooks/useStaff";
 import { useClinicTerms } from "@/hooks/useClinicTerms";
 import { VisitCompletionDialog } from "@/components/dashboard/VisitCompletionDialog";
 import { useCheckInAppointment, useStartVisit, hasIntakeConsent } from "@/hooks/useVisitFlow";
-import { useClinicTerms } from "@/hooks/useClinicTerms";
 import { useClinicLinks } from "@/hooks/usePatientContext";
 import { useNavigate } from "react-router-dom";
 import { UserCheck, Stethoscope } from "lucide-react";
