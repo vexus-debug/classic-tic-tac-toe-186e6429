@@ -6,7 +6,7 @@ export interface ConsentTemplateSeed {
   content: string;
 }
 
-const sig = `\nPatient / Guardian name: [PATIENT NAME]\nSignature: ______________________   Date: [DATE]\nClinician name: [CLINICIAN NAME]\nSignature: ______________________   Date: [DATE]\nWitness (if applicable): ______________________`;
+// Signature lines are drawn by the PDF (digital seals, timestamp, SHA-256), not in the body.
 
 export const consentTemplateSeeds: ConsentTemplateSeed[] = [
   {
@@ -24,8 +24,7 @@ I, [PATIENT NAME], authorise the clinician and staff of [CLINIC NAME] to perform
 4. Risks. Common risks include discomfort, swelling, bruising, bleeding, sensitivity, infection, and the possibility that a tooth may require further treatment or removal.
 5. Fees. The estimated fee is [AMOUNT]. I understand additional procedures may change this estimate and will be discussed with me where possible.
 6. Questions. I have had the opportunity to ask questions and my questions have been answered to my satisfaction.
-7. Withdrawal. I understand I may withdraw my consent at any time before or during treatment.
-${sig}`,
+7. Withdrawal. I understand I may withdraw my consent at any time before or during treatment.`,
   },
   {
     key: "extraction",
@@ -49,8 +48,7 @@ I understand the following risks have been explained to me:
 8. Fractured root tips that may be safer to leave in place.
 9. Need for sectioning of the tooth or removal of bone (surgical extraction).
 
-Post-operative instructions have been provided to me and I agree to follow them. I have disclosed all medications, allergies and medical conditions, including blood thinners and bisphosphonates.
-${sig}`,
+Post-operative instructions have been provided to me and I agree to follow them. I have disclosed all medications, allergies and medical conditions, including blood thinners and bisphosphonates.`,
   },
   {
     key: "root-canal",
@@ -66,8 +64,7 @@ I consent to root canal treatment of tooth [TOOTH NUMBER].
 3. Number of visits. Treatment may require more than one visit: [NUMBER OF VISITS].
 4. Risks include post-operative pain or swelling, instrument separation within the canal, perforation of the root, canals that cannot be located or fully cleaned, cracked or discoloured tooth structure, and irritation from irrigating solutions.
 5. Restoration. A permanent restoration, often a crown, is required after treatment. Without it the tooth may fracture and be lost. This cost is separate: [AMOUNT].
-6. Untreated infection. I understand that not treating the tooth may lead to spreading infection, pain and tooth loss.
-${sig}`,
+6. Untreated infection. I understand that not treating the tooth may lead to spreading infection, pain and tooth loss.`,
   },
   {
     key: "implant",
@@ -83,8 +80,7 @@ I consent to the placement of [NUMBER] dental implant(s) at site(s) [TOOTH NUMBE
 3. Grafting. Additional bone or membrane material of human, animal or synthetic origin may be required. This has been explained and accepted.
 4. Maintenance. Long-term success depends on oral hygiene, regular reviews and refraining from smoking. Failure to maintain the implant may void any warranty.
 5. Fees. Surgical fee: [AMOUNT]. Restorative fee: [AMOUNT]. I understand the total treatment spans several appointments.
-6. No guarantee. I understand no guarantee of outcome has been given.
-${sig}`,
+6. No guarantee. I understand no guarantee of outcome has been given.`,
   },
   {
     key: "orthodontic",
@@ -100,8 +96,7 @@ I consent to orthodontic treatment using [APPLIANCE TYPE] for [PATIENT NAME].
 3. Extractions. Treatment may require the removal of teeth: [TOOTH NUMBER].
 4. Retention. I understand that retainers must be worn as instructed, indefinitely in most cases, and that teeth will move if retainers are not worn.
 5. Hygiene and diet. I agree to maintain excellent oral hygiene, attend recall visits and avoid hard or sticky foods.
-6. Fees. Total fee: [AMOUNT], payable as agreed. Additional fees apply to replacement of lost or broken appliances and retainers.
-${sig}`,
+6. Fees. Total fee: [AMOUNT], payable as agreed. Additional fees apply to replacement of lost or broken appliances and retainers.`,
   },
   {
     key: "anaesthesia",
@@ -116,8 +111,7 @@ I consent to the administration of local anaesthesia and, where indicated, consc
 2. Sedation risks include nausea, vomiting, headache, drowsiness, over-sedation requiring reversal, breathing difficulty and, very rarely, serious cardiorespiratory events.
 3. Pre-operative instructions. I confirm I have followed the fasting instructions given: [FASTING INSTRUCTIONS].
 4. Escort and driving. If sedated, I confirm a responsible adult will accompany me home and that I will not drive, operate machinery or sign legal documents for 24 hours.
-5. Disclosure. I have disclosed all medical conditions, pregnancy, allergies, recreational drug and alcohol use, and all medications I take.
-${sig}`,
+5. Disclosure. I have disclosed all medical conditions, pregnancy, allergies, recreational drug and alcohol use, and all medications I take.`,
   },
   {
     key: "whitening",
@@ -133,8 +127,7 @@ I consent to tooth whitening using [WHITENING SYSTEM], performed in the clinic a
 3. Risks include tooth sensitivity, gum or lip irritation and short-term white patches on the enamel, which usually settle within a few days.
 4. Longevity. Whitening fades over time. Tea, coffee, red wine and tobacco accelerate relapse. Top-up treatment may be required at additional cost.
 5. Not suitable. Whitening is not recommended during pregnancy or breastfeeding, or for patients under 18 without specific advice.
-6. Home kits. I agree to follow the wear-time instructions and to keep the gel out of reach of children.
-${sig}`,
+6. Home kits. I agree to follow the wear-time instructions and to keep the gel out of reach of children.`,
   },
   {
     key: "minors",
@@ -149,8 +142,7 @@ I, [GUARDIAN NAME], confirm that I am the parent or legal guardian of [PATIENT N
 2. Behaviour management. I understand techniques such as tell-show-do, voice control, distraction and, where agreed, protective stabilisation or sedation may be used, and these have been explained to me.
 3. Treatment in my absence. I authorise / do not authorise (delete as applicable) treatment when the child attends accompanied by [AUTHORISED ADULT].
 4. Emergency care. In an emergency where I cannot be reached, I authorise necessary treatment to relieve pain or control infection.
-5. Fees. I accept responsibility for the fees arising from this treatment.
-${sig}`,
+5. Fees. I accept responsibility for the fees arising from this treatment.`,
   },
   {
     key: "photography-data",
@@ -165,8 +157,7 @@ I consent to [CLINIC NAME] taking and storing clinical photographs, radiographs,
 2. Additional use. I agree / do not agree (delete as applicable) to my anonymised images being used for teaching, publication and clinic marketing including social media and the clinic website.
 3. Identification. I understand that images of the face may make me identifiable and that consent for marketing use may be withdrawn at any time, although material already published may not be retrievable.
 4. Data protection. My personal and health data is processed lawfully, stored securely and retained for the period required by law. I may request access to or correction of my records.
-5. Third parties. Data may be shared with insurers, referral clinicians or regulators only where I have authorised it or where required by law.
-${sig}`,
+5. Third parties. Data may be shared with insurers, referral clinicians or regulators only where I have authorised it or where required by law.`,
   },
   {
     key: "financial",
@@ -183,8 +174,7 @@ Patient: [PATIENT NAME]   Treatment: [TREATMENT DESCRIPTION]   Estimated total: 
 4. Cancellations. Appointments cancelled with less than [NOTICE PERIOD] notice, or missed without notice, may attract a fee of [CANCELLATION FEE].
 5. Insurance. Any insurance or HMO benefit is an arrangement between me and my provider. I remain responsible for the full balance if a claim is declined or partly paid.
 6. Outstanding balances. Unpaid balances may be referred for recovery, and I accept responsibility for reasonable recovery costs.
-7. Refunds. Laboratory work and materials already made for me are non-refundable.
-${sig}`,
+7. Refunds. Laboratory work and materials already made for me are non-refundable.`,
   },
 ];
 

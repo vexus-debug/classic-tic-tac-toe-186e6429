@@ -343,13 +343,28 @@ export async function completeQueueForPatient(orgId: string | undefined, patient
     .gte("created_at", `${today()}T00:00:00`);
 }
 
-/** True when the patient already has a consent form created today. */
+/** True when the patient has a signed general (intake) consent on file. Signed once, not per visit. */
+export async function hasIntakeConsent(orgId?: string | null, patientId?: string | null): Promise<boolean> {
+  if (!orgId || !patientId) return false;
+  const { count, error } = await (supabase as any)
+    .from("patient_consent_forms")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("patient_id", patientId)
+    .eq("status", "signed")
+    .ilike("title", "%general%");
+  if (error) return false;
+  return (count || 0) > 0;
+}
+
+/** True when the visit's consent step is done: intake consent on file, or a consent created today. */
 export function useConsentToday(patientId?: string | null) {
   const { currentOrg } = useOrg();
   return useQuery({
     queryKey: ["consent-today", patientId, currentOrg?.org_id],
     enabled: !!patientId && !!currentOrg?.org_id,
     queryFn: async () => {
+      if (await hasIntakeConsent(currentOrg?.org_id, patientId)) return true;
       const { count, error } = await (supabase as any)
         .from("patient_consent_forms")
         .select("id", { count: "exact", head: true })
