@@ -10,8 +10,8 @@ import { useUpdateAppointment, type AppointmentRow } from "@/hooks/useAppointmen
 import { useDentists } from "@/hooks/useStaff";
 import { useClinicTerms } from "@/hooks/useClinicTerms";
 import { VisitCompletionDialog } from "@/components/dashboard/VisitCompletionDialog";
-import { useCheckInAppointment, useStartVisit } from "@/hooks/useVisitFlow";
-import { suggestConsentTemplate } from "@/data/consentTemplates";
+import { useCheckInAppointment, useStartVisit, hasIntakeConsent } from "@/hooks/useVisitFlow";
+import { useClinicTerms } from "@/hooks/useClinicTerms";
 import { useClinicLinks } from "@/hooks/usePatientContext";
 import { useNavigate } from "react-router-dom";
 import { UserCheck, Stethoscope } from "lucide-react";
@@ -36,6 +36,7 @@ export function AppointmentDetailDialog({ appointment, open, onOpenChange, check
   const checkIn = useCheckInAppointment();
   const startVisit = useStartVisit();
   const link = useClinicLinks();
+  const visitTerms = useClinicTerms();
   const navigate = useNavigate();
   const [justCheckedIn, setJustCheckedIn] = useState(false);
   const terms = useClinicTerms();
@@ -110,8 +111,12 @@ export function AppointmentDetailDialog({ appointment, open, onOpenChange, check
     if (!appointment) return;
     await startVisit.mutateAsync({ patient_id: appointment.patient_id, appointment_id: appointment.id });
     onOpenChange(false);
-    const tmpl = suggestConsentTemplate(appointment.treatments?.name || appointment.notes || "");
-    navigate(link("consent-forms", appointment.patient_id, { new: "1", ...(tmpl ? { template: tmpl } : {}) }));
+    // Visit start only needs the general intake consent; procedure consents come from the accepted plan.
+    if (visitTerms.showDentalChart && await hasIntakeConsent(currentOrg?.org_id, appointment.patient_id)) {
+      navigate(link("dental-charts", appointment.patient_id));
+    } else {
+      navigate(link("consent-forms", appointment.patient_id, { new: "1", template: "general" }));
+    }
   };
 
   const wrapEl = (
